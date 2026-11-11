@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchical Firewall Simulator</title>
+    <style>
+        :root {
+            --bg-dark: #130811;
+            --card-bg: #1e0d1b;
+            --inner-bg: #160914;
+            --border-subtle: #3d1c37;
+
+            --c-pink: #f472b6;
+            --c-pink-deep: #ec4899;
+            --c-green: #22c55e;
+            --c-yellow: #eab308;
+            --c-lightblue: #38bdf8;
+            
+            --c-drop-red: #f87171;
+            --c-drop-border: #7f1d1d;
+            --c-drop-bg: #1a0b12;
+
+            --text-white: #fdf2f8;
+            --text-muted: #c09bb8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            padding: 16px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        /* HEADER */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .title-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-icon {
+            color: var(--c-pink);
+            font-size: 1.7rem;
+        }
+
+        header h1 {
+            color: var(--c-pink);
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .header-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-top {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-white);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: border-color 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-top:hover {
+            border-color: var(--c-pink);
+        }
+
+        .github-icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* RESPONSIVE GRID */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        @media (min-width: 900px) {
+            body { padding: 26px; }
+            header h1 { font-size: 1.75rem; }
+            .main-grid {
+                grid-template-columns: 430px 1fr;
+                align-items: start;
+            }
+        }
+
+        .col-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        /* CARD UMUM */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 1. DROP LIST (PRIORITY 1) */
+        .drop-card {
+            background-color: var(--c-drop-bg);
+            border: 1px solid var(--c-drop-border);
+            box-shadow: 0 4px 16px rgba(127, 29, 29, 0.25);
+        }
+
+        .drop-card .card-header {
+            color: var(--c-drop-red);
+        }
+
+        .header-svg-icon {
+            width: 18px;
+            height: 18px;
+            stroke: var(--c-drop-red);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .ip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .ip-chip {
+            background-color: rgba(248, 113, 113, 0.15);
+            border: 1px solid rgba(248, 113, 113, 0.35);
+            color: #fca5a5;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trash-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 2px;
+        }
+
+        .trash-svg {
+            width: 14px;
+            height: 14px;
+            stroke: #f87171;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: stroke 0.2s;
+        }
+
+        .trash-btn:hover .trash-svg {
+            stroke: #ffffff;
+        }
+
+        .inline-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .drop-card input {
+            background-color: #120509;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        .drop-card input::placeholder {
+            color: #993d3d;
+        }
+
+        .drop-card input:focus {
+            outline: none;
+            border-color: var(--c-drop-red);
+            box-shadow: 0 0 6px rgba(248, 113, 113, 0.3);
+        }
+
+        .btn-red-block {
+            background-color: #ef4444;
+            color: #ffffff;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.84rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: filter 0.2s;
+        }
+
+        .btn-red-block:hover {
+            filter: brightness(1.1);
+        }
+
+        input, select {
+            background-color: var(--inner-bg);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-white);
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--c-pink);
+        }
+
+        /* 2. HIERARCHY RULES */
+        .hierarchy-card .card-header {
+            color: var(--text-white);
+        }
+
+        .info-banner {
+            background-color: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #bae6fd;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.76rem;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .rules-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 240px;
+            overflow-y: auto;
+            margin-bottom: 14px;
+        }
+
+        .rule-row {
+            background-color: var(--inner-bg);
+            border: 1px solid var(--border-subtle);
+            border-left: 3px solid var(--c-green);
+            padding: 10px 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .rule-row.is-drop {
+            border-left-color: var(--c-pink-deep);
+        }
+
+        .rule-row.is-drop .rule-text strong {
+            color: var(--c-pink);
+        }
+
+        .rule-text strong {
+            color: var(--c-green);
+            font-size: 0.85rem;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .rule-text span {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .trash-btn-rule {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+        }
+
+        .trash-btn-rule .trash-svg {
+            stroke: var(--text-muted);
+        }
+
+        .trash-btn-rule:hover .trash-svg {
+            stroke: var(--c-yellow);
+        }
+
+        .form-section {
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn-lightblue {
+            background-color: rgba(56, 189, 248, 0.12);
+            border: 1px solid var(--c-lightblue);
+            color: var(--c-lightblue);
+            padding: 9px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.84rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-lightblue:hover {
+            background-color: rgba(56, 189, 248, 0.22);
+        }
+
+        /* 3. TOPOLOGY VISUALIZER & INSPECTION STOP ANIMATION */
+        .topology-box {
+            background-color: var(--inner-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 22px 14px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            min-height: 220px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .client-box {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-subtle);
+            padding: 14px 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .client-icon {
+            width: 26px;
+            height: 26px;
+            stroke: var(--text-muted);
+            fill: none;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .fw-wall {
+            width: 36px;
+            height: 155px;
+            background: linear-gradient(to bottom, var(--border-subtle), var(--c-pink-deep), var(--border-subtle));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 16px rgba(236, 72, 153, 0.45);
+            z-index: 2;
+            position: relative;
+            transition: box-shadow 0.3s;
+        }
+
+        .fw-wall.packet-hit {
+            box-shadow: 0 0 25px var(--c-lightblue);
+        }
+        .fw-wall.packet-blocked {
+            box-shadow: 0 0 25px #ef4444;
+        }
+
+        .fw-shield-icon {
+            width: 20px;
+            height: 20px;
+            stroke: #fff;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .zones-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 2;
+        }
+
+        .zone-item {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            width: 165px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        @media (min-width: 900px) {
+            .zone-item {
+                width: 215px;
+                padding: 12px 16px;
+                font-size: 0.85rem;
+            }
+        }
+
+        .zone-svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            fill: none;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .z-blue {
+            border: 1px solid var(--c-lightblue);
+            color: var(--c-lightblue);
+            background-color: rgba(56, 189, 248, 0.08);
+        }
+        .z-blue .zone-svg { stroke: var(--c-lightblue); }
+
+        .z-green {
+            border: 1px solid var(--c-green);
+            color: var(--c-green);
+            background-color: rgba(34, 197, 94, 0.08);
+        }
+        .z-green .zone-svg { stroke: var(--c-green); }
+
+        .z-yellow {
+            border: 1px solid var(--c-yellow);
+            color: var(--c-yellow);
+            background-color: rgba(234, 179, 8, 0.08);
+        }
+        .z-yellow .zone-svg { stroke: var(--c-yellow); }
+
+        .zone-active {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        /* Paket Berhenti di Tengah Firewall lalu Terbang ke Tujuan */
+        .flying-packet {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            opacity: 0;
+            z-index: 20;
+            pointer-events: none;
+            box-shadow: 0 0 12px currentColor, 0 0 18px #fff;
+        }
+
+        .test-bar {
+            display: grid;
+            grid-template-columns: 95px 1fr auto;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        @media (max-width: 480px) {
+            .test-bar {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .btn-pink {
+            background: linear-gradient(135deg, var(--c-pink-deep), var(--c-pink));
+            color: #ffffff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: transform 0.1s;
+        }
+
+        .btn-pink:active {
+            transform: scale(0.96);
+        }
+
+        .btn-pink:hover {
+            opacity: 0.92;
+        }
+
+        /* 4. LIVE TERMINAL LOGS */
+        .terminal-header-svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--c-green);
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .terminal {
+            background-color: #170914;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            height: 165px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            color: var(--c-green);
+        }
+
+        @media (min-width: 900px) {
+            .terminal { height: 240px; }
+        }
+
+        .log-yellow { color: var(--c-yellow); }
+        .log-blue { color: var(--c-lightblue); }
+        .log-pink { color: var(--c-pink); }
+    </style>
+</head>
+<body>
+
+    <div class="app-wrapper">
+        <!-- HEADER -->
+        <header>
+            <div class="title-area">
+                <span class="title-icon">🖧</span>
+                <h1>Hierarchical Firewall Simulator</h1>
+            </div>
+            <div class="header-btns">
+                <a href="https://github.com" target="_blank" class="btn-top">
+                    <svg class="github-icon" viewBox="0 0 16 16" version="1.1" aria-hidden="true">
+                        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8z"></path>
+                    </svg>
+                    GitHub Repo
+                </a>
+                <button class="btn-top" onclick="window.print()">📄 Ekspor (PDF)</button>
+            </div>
+        </header>
+
+        <!-- GRID UTAMA -->
+        <main class="main-grid">
+            
+            <!-- KOLOM KIRI -->
+            <div class="col-stack">
+                <!-- PRIORITY 1: DROP LIST -->
+                <section class="card drop-card">
+                    <h2 class="card-header">
+                        <svg class="header-svg-icon" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                        </svg>
+                        DROP LIST (PRIORITY 1)
+                    </h2>
+                    <div class="ip-list" id="drop-container">
+                        <div class="ip-chip">
+                            <span>198.51.100.22</span>
+                            <button class="trash-btn" onclick="removeIp(this)" title="Hapus IP">
+                                <svg class="trash-svg" viewBox="0 0 24 24">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="inline-row">
+                        <input type="text" id="input-ip" placeholder="Cth: 172.16.0.5">
+                        <button class="btn-red-block" onclick="addIp()">Blokir IP</button>
+                    </div>
+                </section>
+
+                <!-- PRIORITY 2: HIERARCHY RULES -->
+                <section class="card hierarchy-card">
+                    <h2 class="card-header">HIERARCHY RULES (PRIORITY 2)</h2>
+                    <div class="info-banner">
+                        INFO: Rule Zone 3 otomatis izin ke Zone 1,2,3. Rule Zone 2 izin ke Zone 1,2.
+                    </div>
+
+                    <div class="rules-container" id="rules-list">
+                        <div class="rule-row" data-zone="ZONE_1">
+                            <div class="rule-text">
+                                <strong>ALLOW &rarr; ZONE_1</strong>
+                                <span>Port: 80 | IP: ANY</span>
+                            </div>
+                            <button class="trash-btn-rule" onclick="removeRule(this)" title="Hapus Rule">
+                                <svg class="trash-svg" viewBox="0 0 24 24">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="rule-row" data-zone="ZONE_2">
+                            <div class="rule-text">
+                                <strong>ALLOW &rarr; ZONE_2</strong>
+                                <span>Port: ANY | IP: 192.168.1.10</span>
+                            </div>
+                            <button class="trash-btn-rule" onclick="removeRule(this)" title="Hapus Rule">
+                                <svg class="trash-svg" viewBox="0 0 24 24">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="rule-row" data-zone="ZONE_3">
+                            <div class="rule-text">
+                                <strong>ALLOW &rarr; ZONE_3</strong>
+                                <span>Port: ANY | IP: 10.0.0.1</span>
+                            </div>
+                            <button class="trash-btn-rule" onclick="removeRule(this)" title="Hapus Rule">
+                                <svg class="trash-svg" viewBox="0 0 24 24">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <span class="form-label">Tambah Rule Hirarki</span>
+                        <div class="grid-2">
+                            <select id="rule-action">
+                                <option value="ALLOW">ALLOW</option>
+                                <option value="DROP">DROP</option>
+                            </select>
+                            <select id="rule-zone">
+                                <option value="ZONE_1">Zone 1 (Web)</option>
+                                <option value="ZONE_2">Zone 2 (App/API)</option>
+                                <option value="ZONE_3">Zone 3 (Database)</option>
+                            </select>
+                        </div>
+                        <div class="grid-2">
+                            <select id="rule-port">
+                                <option value="ANY">Port: ANY</option>
+                                <option value="80">Port: 80</option>
+                                <option value="443">Port: 443</option>
+                            </select>
+                            <select id="rule-ip">
+                                <option value="ANY">IP: ANY</option>
+                                <option value="192.168.1.10">IP: 192.168.1.10</option>
+                                <option value="203.0.113.5">IP: 203.0.113.5</option>
+                            </select>
+                        </div>
+                        <button class="btn-lightblue" onclick="addRule()">+ Tambah Rule</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- KOLOM KANAN -->
+            <div class="col-stack">
+                <!-- TOPOLOGY & TESTER -->
+                <section class="card">
+                    <h2 class="card-header"> NETWORK TOPOLOGY & PACKET TESTER</h2>
+                    <div class="topology-box" id="topo-box">
+                        <div class="client-box" id="client-node">
+                            <svg class="client-icon" viewBox="0 0 24 24">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                <line x1="8" y1="21" x2="16" y2="21"></line>
+                                <line x1="12" y1="17" x2="12" y2="21"></line>
+                            </svg>
+                            Public Klien
+                        </div>
+                        <div class="fw-wall" id="fw-wall-el">
+                            <svg class="fw-shield-icon" viewBox="0 0 24 24">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <div class="zones-col">
+                            <div class="zone-item z-blue" id="zone-1" data-zone-id="ZONE_1">
+                                <svg class="zone-svg" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                </svg>
+                                ZONE 1 (Web)
+                            </div>
+                            <div class="zone-item z-green" id="zone-2" data-zone-id="ZONE_2">
+                                <svg class="zone-svg" viewBox="0 0 24 24">
+                                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                </svg>
+                                ZONE 2 (API)
+                            </div>
+                            <div class="zone-item z-yellow" id="zone-3" data-zone-id="ZONE_3">
+                                <svg class="zone-svg" viewBox="0 0 24 24">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                                </svg>
+                                ZONE 3 (DB)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="test-bar">
+                        <select id="test-port">
+                            <option value="80">80</option>
+                            <option value="443">443</option>
+                            <option value="22">22</option>
+                        </select>
+                        <select id="test-ip">
+                            <option value="203.0.113.5">CLIENT IP: 203.0.113.5</option>
+                            <option value="198.51.100.22">CLIENT IP: 198.51.100.22</option>
+                            <option value="192.168.1.10">CLIENT IP: 192.168.1.10</option>
+                        </select>
+                        <button class="btn-pink" onclick="broadcastPacket()">▶ BROADCAST</button>
+                    </div>
+                </section>
+
+                <!-- LIVE TERMINAL LOGS -->
+                <section class="card">
+                    <h2 class="card-header">
+                        <svg class="terminal-header-svg" viewBox="0 0 24 24">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                        LIVE TERMINAL LOGS
+                    </h2>
+                    <div class="terminal" id="terminal">
+                        <div class="log-pink">[SYSTEM] Firewall engine online. Mid-inspection packet pause active.</div>
+                        <div class="log-yellow">[INFO] Priority 1 (Drop List) aktif dengan nuansa merah/coral.</div>
+                        <div class="log-blue">[INFO] Priority 2 (Hierarchy Zones) siap mengevaluasi paket.</div>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const trashSvgCode = `
+            <svg class="trash-svg" viewBox="0 0 24 24">
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        `;
+
+        function addLog(text, colorClass = '') {
+            const term = document.getElementById('terminal');
+            const line = document.createElement('div');
+            if (colorClass) line.className = colorClass;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function addIp() {
+            const input = document.getElementById('input-ip');
+            const ip = input.value.trim();
+            if (!ip) return;
+
+            const chip = document.createElement('div');
+            chip.className = 'ip-chip';
+            chip.innerHTML = `<span>${ip}</span><button class="trash-btn" onclick="removeIp(this)" title="Hapus IP">${trashSvgCode}</button>`;
+            document.getElementById('drop-container').appendChild(chip);
+
+            const selectIp = document.getElementById('test-ip');
+            if (!Array.from(selectIp.options).some(opt => opt.value === ip)) {
+                const opt = document.createElement('option');
+                opt.value = ip;
+                opt.textContent = `CLIENT IP: ${ip}`;
+                selectIp.appendChild(opt);
+            }
+
+            addLog(`IP ${ip} ditambahkan ke Priority 1 Drop List.`, 'log-yellow');
+            input.value = '';
+        }
+
+        function removeIp(btn) {
+            const ip = btn.parentElement.querySelector('span').textContent;
+            btn.parentElement.remove();
+            addLog(`IP ${ip} dihapus dari Drop List.`, 'log-blue');
+        }
+
+        function addRule() {
+            const action = document.getElementById('rule-action').value;
+            const zone = document.getElementById('rule-zone').value;
+            const port = document.getElementById('rule-port').value;
+            const ip = document.getElementById('rule-ip').value;
+
+            const row = document.createElement('div');
+            row.className = 'rule-row' + (action === 'DROP' ? ' is-drop' : '');
+            row.setAttribute('data-zone', zone);
+            row.innerHTML = `
+                <div class="rule-text">
+                    <strong>${action} &rarr; ${zone}</strong>
+                    <span>Port: ${port} | IP: ${ip}</span>
+                </div>
+                <button class="trash-btn-rule" onclick="removeRule(this)" title="Hapus Rule">${trashSvgCode}</button>
+            `;
+            document.getElementById('rules-list').appendChild(row);
+            addLog(`Rule baru ditambahkan: ${action} -> ${zone} (Port: ${port} | IP: ${ip})`, 'log-blue');
+        }
+
+        function removeRule(btn) {
+            btn.parentElement.remove();
+            addLog(`Aturan hirarki dihapus.`, 'log-pink');
+        }
+
+        function broadcastPacket() {
+            const ip = document.getElementById('test-ip').value;
+            const port = document.getElementById('test-port').value;
+            const blockedIps = Array.from(document.querySelectorAll('#drop-container span')).map(s => s.textContent);
+
+            // Ambil target zona dari aturan hirarki terakhir
+            const ruleRows = document.querySelectorAll('.rule-row');
+            let targetZone = 'ZONE_1';
+            if (ruleRows.length > 0) {
+                const lastRule = ruleRows[ruleRows.length - 1];
+                const zAttr = lastRule.getAttribute('data-zone');
+                if (zAttr) targetZone = zAttr;
+            }
+
+            let packetColor = '#38bdf8'; // Biru (Zone 1)
+            let zoneElementId = 'zone-1';
+            let targetTopPercent = 25; 
+
+            if (targetZone === 'ZONE_2') {
+                packetColor = '#22c55e'; // Hijau (Zone 2)
+                zoneElementId = 'zone-2';
+                targetTopPercent = 50;
+            } else if (targetZone === 'ZONE_3') {
+                packetColor = '#eab308'; // Kuning (Zone 3)
+                zoneElementId = 'zone-3';
+                targetTopPercent = 75;
+            }
+
+            addLog(`[BROADCAST] Paket dari ${ip} menuju Port ${port} (${targetZone})...`, 'log-pink');
+
+            const topoBox = document.getElementById('topo-box');
+            const wall = document.getElementById('fw-wall-el');
+            wall.className = 'fw-wall';
+
+            // Munculkan minimal 3 gelembung beruntun
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const dot = document.createElement('div');
+                    dot.className = 'flying-packet';
+                    dot.style.backgroundColor = packetColor;
+                    dot.style.color = packetColor;
+                    dot.style.top = '50%';
+                    dot.style.left = '18%';
+                    topoBox.appendChild(dot);
+
+                    if (blockedIps.includes(ip)) {
+                        // Tahap 1: Terbang ke tengah firewall
+                        dot.style.transition = 'all 0.3s ease-in-out';
+                        setTimeout(() => {
+                            dot.style.opacity = '1';
+                            dot.style.left = '51%';
+                            wall.classList.add('packet-blocked');
+                        }, 30);
+
+                        // Berhenti sejenak di tengah firewall untuk evaluasi drop list, lalu memantul mundur
+                        setTimeout(() => {
+                            dot.style.backgroundColor = '#ef4444';
+                            dot.style.color = '#ef4444';
+                            dot.style.left = '20%';
+                            dot.style.opacity = '0';
+                        }, 600);
+
+                        setTimeout(() => dot.remove(), 1000);
+                    } else {
+                        // Tahap 1: Terbang ke tengah firewall
+                        dot.style.transition = 'all 0.3s ease-in-out';
+                        setTimeout(() => {
+                            dot.style.opacity = '1';
+                            dot.style.left = '51%';
+                            wall.classList.add('packet-hit');
+                        }, 30);
+
+                        // Berhenti sejenak di tengah firewall (inspecting), lalu meluncur ke zona tujuan masing-masing
+                        setTimeout(() => {
+                            dot.style.transition = 'all 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                            dot.style.left = '84%';
+                            dot.style.top = `${targetTopPercent}%`;
+                        }, 650);
+
+                        // Hilang saat sampai di zona
+                        setTimeout(() => {
+                            dot.style.opacity = '0';
+                            wall.classList.remove('packet-hit');
+                        }, 1100);
+
+                        setTimeout(() => dot.remove(), 1300);
+                    }
+                }, i * 200);
+            }
+
+            // Logika terminal sesuai hasil evaluasi
+            setTimeout(() => {
+                if (blockedIps.includes(ip)) {
+                    addLog(`[BLOCKED] Paket dari ${ip} ditolak oleh Priority 1 Drop List!`, 'log-yellow');
+                } else {
+                    addLog(`[ALLOWED] Paket dari ${ip} berhasil diteruskan ke ${targetZone}.`, 'log-blue');
+                    const targetEl = document.getElementById(zoneElementId);
+                    targetEl.classList.add('zone-active');
+                    addLog(`[SUCCESS] Akses sukses tembus ke ${targetZone}.`, 'log-yellow');
+                    setTimeout(() => targetEl.classList.remove('zone-active'), 800);
+                }
+            }, 850);
+        }
+    </script>
+</body>
+</html>
